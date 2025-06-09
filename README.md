@@ -35,6 +35,5 @@ pip install pip-tools
 ### Compile and install the requirements
 
 ```
-pip-compile
-pip-sync
+pip-compile && pip-sync
 ```
