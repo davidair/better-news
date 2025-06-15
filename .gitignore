@@ -196,3 +196,10 @@ cython_debug/
 
 # We use Requirements.in so ignore requirements.txt
 requirements.txt
+
+# Feeds
+feeds.yaml
+
+# Local cache
+rss_storage.sqlite
+rss_raw_data/
