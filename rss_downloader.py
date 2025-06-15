@@ -21,6 +21,8 @@ import sqlite3
 import sys
 import xml.etree.ElementTree as ET
 
+from utils import generate_filename
+
 class RSSDownloader:
     def __init__(self, source_name, source_uri, db_path, raw_storage_path):
         self.source_name = source_name
@@ -46,11 +48,6 @@ class RSSDownloader:
             ''')
             conn.commit()
 
-    def _generate_filename(self, title, pubDate):
-        """Creates an MD5 hash-based filename using title and sanitized timestamp."""
-        sanitized_timestamp = dateparser.parse(pubDate).strftime("%Y_%m_%d_%H_%M_%S")
-        hash_value = hashlib.md5(title.encode()).hexdigest()
-        return f"{sanitized_timestamp}_{hash_value}.xml"
 
     def _fetch_rss_feed(self, url):
         """Fetch the RSS feed from the given URL and return the XML payload."""
@@ -96,7 +93,7 @@ class RSSDownloader:
                     continue  # Avoid duplicate storage
                 
                 # Save full RSS entry as an XML file
-                filename = self._generate_filename(title, pubDate)
+                filename = generate_filename(title, pubDate)
                 file_path = os.path.join(self.raw_storage_path, self.source_name, filename)
                 self._save_entry_as_xml(file_path, item)
 
