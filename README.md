@@ -71,7 +71,7 @@ YAML format:
  url: https://FEED_1
 -
   name: SOURCE_2
-  url: https://FEED_1
+  url: https://FEED_2
 ...
 ```
 

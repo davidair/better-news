@@ -6,7 +6,7 @@ from rss_downloader import RSSDownloader
 
 def main(args):
     if len(args) != 1:
-        print("Usage: download_feeds.py feels.yaml")
+        print("Usage: download_feeds.py feeds.yaml")
         sys.exit(1)
 
     feeds_path = args[0]
