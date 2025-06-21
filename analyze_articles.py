@@ -37,6 +37,9 @@ def parse_sentiment(text):
 
 
 def run_analysis(ollama_client, title, description):
+    if not description:
+        raise ValueError("Description is required for sentiment analysis")
+
     # Start a chat session with Ollama
     prompt = (f"Analyze the sentiment of this news item:\n\nTitle: {title}\nDescription: {description}\n\n"
               "Is it positive, neutral, or negative? "
@@ -74,8 +77,11 @@ def process_rss_item(item):
     title = item.find('title').text if item.find(
         'title') is not None else "No title"
     description_raw = item.find('description').text if item.find(
-        'description') is not None else "No description"
-    description = extract_with_custom_rules(description_raw)
+        'description') is not None else None
+    description = None
+    if description_raw:
+        description = extract_with_custom_rules(description_raw)
+
     return title, description
 
 
