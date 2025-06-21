@@ -1,4 +1,3 @@
-import ollama
 import re
 import sqlite3
 import sys
@@ -6,6 +5,7 @@ import sys
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
+from ollama_wrapper import OllamaWrapper
 
 from utils import generate_filename
 
@@ -36,9 +36,8 @@ def parse_sentiment(text):
     return sentiment, explanation
 
 
-def run_analysis(title, description):
+def run_analysis(ollama_client, title, description):
     # Start a chat session with Ollama
-    client = ollama.Client()
     prompt = (f"Analyze the sentiment of this news item:\n\nTitle: {title}\nDescription: {description}\n\n"
               "Is it positive, neutral, or negative? "
               "You must start your response with -1 for negative, 0 for neutral and 1 for positive, followed by an explanation. "
@@ -46,8 +45,8 @@ def run_analysis(title, description):
               "to cause distress to the reader so it's important to annotate anything possibly causing distress as negative.")
 
     # Send the prompt to the model and retrieve the response
-    response = client.generate(MODEL_NAME, prompt, options={"temperature": 0})
-    sentiment, explanation = parse_sentiment(response["response"])
+    response = ollama_client.generate(prompt, options={"temperature": 0})
+    sentiment, explanation = parse_sentiment(response)
 
     return sentiment, explanation
 
@@ -79,7 +78,7 @@ def process_rss_item(item):
     return title, description
 
 
-def analyze_sentiment(raw_storage_path, source, pubDate, title):
+def analyze_sentiment(ollama_client, raw_storage_path, source, pubDate, title):
     article_path = Path(raw_storage_path) / source / \
         generate_filename(title, pubDate)
     if not article_path.exists():
@@ -87,12 +86,12 @@ def analyze_sentiment(raw_storage_path, source, pubDate, title):
 
     item = ET.parse(article_path)
     title, description = process_rss_item(item)
-    sentiment, explanation = run_analysis(title, description)
+    sentiment, explanation = run_analysis(ollama_client, title, description)
 
     return sentiment, explanation
 
 
-def analyze_articles(raw_storage_path, db_path):
+def analyze_articles(ollama_client, raw_storage_path, db_path):
     # Connect to the SQLite database
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -122,7 +121,7 @@ def analyze_articles(raw_storage_path, db_path):
 
     for source, pubDate, title in rows_to_process:
         sentiment, explanation = analyze_sentiment(
-            raw_storage_path, source, pubDate, title)
+            ollama_client, raw_storage_path, source, pubDate, title)
 
         cursor.execute('''
             INSERT INTO sentiment (source, pubDate, title, sentiment, explanation)
@@ -151,7 +150,13 @@ def main(args):
         print(f"{db_path} does not exist")
         sys.exit(1)
 
-    analyze_articles(raw_storage_path, db_path)
+    ollama_client = OllamaWrapper(MODEL_NAME)
+
+    try:
+        ollama_client.start_ollama()
+        analyze_articles(ollama_client, raw_storage_path, db_path)
+    finally:
+        ollama_client.stop_ollama()
 
 
 if __name__ == "__main__":
