@@ -20,7 +20,7 @@ def parse_sentiment(text):
 
     if not match:
         raise ValueError(
-            "Invalid format: Expected an integer followed by a space or newline and some text.")
+            f"Invalid format: Expected an integer followed by a space or newline and some text. Text: {text}")
 
     sentiment = int(match.group(1))
     explanation = match.group(2).strip()
@@ -42,7 +42,8 @@ def run_analysis(ollama_client, title, description):
               "Is it positive, neutral, or negative? "
               "You must start your response with -1 for negative, 0 for neutral and 1 for positive, followed by an explanation. "
               "Note that the analysis is done for the purpose of determining if the news article is likely "
-              "to cause distress to the reader so it's important to annotate anything possibly causing distress as negative.")
+              "to cause distress to the reader so it's important to annotate anything possibly causing distress as negative. Make sure response always starts with -1, 0 or 1 before the explanation.")
+
 
     # Send the prompt to the model and retrieve the response
     response = ollama_client.generate(prompt, options={"temperature": 0})
@@ -120,15 +121,18 @@ def analyze_articles(ollama_client, raw_storage_path, db_path):
     rows_to_process = cursor.fetchall()
 
     for source, pubDate, title in rows_to_process:
-        sentiment, explanation = analyze_sentiment(
-            ollama_client, raw_storage_path, source, pubDate, title)
+        try:
+            sentiment, explanation = analyze_sentiment(
+                ollama_client, raw_storage_path, source, pubDate, title)
 
-        cursor.execute('''
-            INSERT INTO sentiment (source, pubDate, title, sentiment, explanation)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (source, pubDate, title, sentiment, explanation))
-        print(
-            f"Processed: source='{source}', pubDate='{pubDate}', title='{title}' → sentiment={sentiment}")
+            cursor.execute('''
+                INSERT INTO sentiment (source, pubDate, title, sentiment, explanation)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (source, pubDate, title, sentiment, explanation))
+            print(
+                f"Processed: source='{source}', pubDate='{pubDate}', title='{title}' → sentiment={sentiment}")
+        except Exception as e:
+            print(f'Error processing {source}, {pubDate}, {title}: {e}')
 
     # Commit changes and close the connection
     conn.commit()
