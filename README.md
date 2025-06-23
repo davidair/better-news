@@ -24,7 +24,7 @@ python -m venv .venv
 ### Activate the virtual environment
 
 Windows: `.venv\Scripts\activate.bat`
-MacOS and Linux: `./venv/Scripts/activate`
+MacOS and Linux: `source ./venv/bin/activate`
 
 ### Install pip-tools
 
@@ -36,6 +36,11 @@ pip install pip-tools
 
 ```
 pip-compile && pip-sync
+```
+
+On macOS, noticed had to do this for sync, per https://stackoverflow.com/a/69290623:
+```
+pip-sync --python-executable .venv/bin/python requirements.txt
 ```
 
 ## Usage
