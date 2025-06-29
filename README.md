@@ -15,6 +15,40 @@ It can be installed with pyenv via `pyenv install 3.13.2`.
 
 Once installed, set the local Python installation with `pyenv local 3.13.2`.
 
+### Install GCloud CLI
+
+Follow the instructions here:
+https://cloud.google.com/sdk/docs/install#installation_instructions
+
+Make sure the "gcloud" command works from the command line before proceeding to next steps.
+
+### Initialize GCloud
+
+```
+gcloud init
+```
+
+### Create the project
+
+```
+gcloud projects create better-news-emailer
+gcloud config set project better-news-emailer
+```
+
+### Enable the Gmail API
+
+```
+gcloud services enable gmail.googleapis.com
+```
+
+### Create credentials
+
+- Navigate to https://console.cloud.google.com/auth/overview and follow the instructions to configure auth.
+- Navigate to https://console.cloud.google.com/auth/clients and create a "Desktop app" client.
+- When offered, download the json file and save it as "credentials.json" in this project's root directory.
+- Make sure to add your email address as a test user under Audiences!
+
+
 ### Create a virtual environment
 
 ```

@@ -203,3 +203,7 @@ feeds.yaml
 # Local cache
 rss_storage.sqlite
 rss_raw_data/
+
+# Google Cloud
+credentials.json
+token.json

@@ -1,5 +1,9 @@
 bs4
 dateparser
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
 ollama
 psutil
 pyyaml

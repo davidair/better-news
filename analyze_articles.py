@@ -47,7 +47,6 @@ def run_analysis(ollama_client, title, description):
               "Note that the analysis is done for the purpose of determining if the news article is likely "
               "to cause distress to the reader so it's important to annotate anything possibly causing distress as negative. Make sure response always starts with -1, 0 or 1 before the explanation.")
 
-
     # Send the prompt to the model and retrieve the response
     response = ollama_client.generate(prompt, options={"temperature": 0})
     sentiment, explanation = parse_sentiment(response)
@@ -146,16 +145,19 @@ def analyze_articles(ollama_client, raw_storage_path, db_path):
 
 
 def main(args):
-    if len(args) != 2:
-        print("Usage: analyze_articles raw_storage_path db_path")
-        sys.exit(1)
+    raw_storage_path = Path("rss_raw_data")
+    db_path = Path("rss_storage.sqlite")
 
-    raw_storage_path = Path(args[0])
+    if len(args) > 0:
+        raw_storage_path = Path(args[0])
+
+    if len(args) > 1:
+        db_path = Path(args[1])
+
     if not raw_storage_path.exists():
         print(f"{raw_storage_path} does not exist")
         sys.exit(1)
 
-    db_path = Path(args[1])
     if not db_path.exists():
         print(f"{db_path} does not exist")
         sys.exit(1)
