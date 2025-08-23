@@ -1,5 +1,9 @@
+import base64
 import os
 import sys
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -8,55 +12,56 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # Scopes for Gmail API
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 
-import base64
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-
-def send_email(service, to, subject, body, cc=None, bcc=None):
+def send_email(service, to, subject, body_plain, body_html=None, cc=None, bcc=None):
     """
-    Sends an email via the Gmail API.
-    
+    Sends an email via the Gmail API with plain text and optional HTML.
+
     Parameters:
         service: Authenticated Gmail API service object
         to (str): Primary recipient email address
         subject (str): Email subject
-        body (str): Email body (plain text)
+        body_plain (str): Plain text body (fallback)
+        body_html (str, optional): HTML body (rich content)
         cc (str or list, optional): CC recipient(s)
         bcc (str or list, optional): BCC recipient(s)
     """
-    message = MIMEMultipart()
-    message['To'] = to
-    message['Subject'] = subject
+    # Use multipart/alternative for plain + HTML
+    message = MIMEMultipart("alternative")
+    message["To"] = to
+    message["Subject"] = subject
 
     # Handle CC and BCC (convert to comma-separated string if given as a list)
-    if cc:
-        if isinstance(cc, list):
-            cc = ', '.join(cc)
-        message['Cc'] = cc
-    if bcc:
-        if isinstance(bcc, list):
-            bcc = ', '.join(bcc)
+    if cc and isinstance(cc, list):
+        cc = ", ".join(cc)
+        message["Cc"] = cc
+    if bcc and isinstance(bcc, list):
+        bcc = ", ".join(bcc)
+        message["Bcc"] = bcc
 
-    message.attach(MIMEText(body, 'plain'))
+    # Attach plain text
+    message.attach(MIMEText(body_plain, "plain"))
 
-    # Combine all recipients for the Gmail API call
+    # Attach HTML if provided
+    if body_html:
+        message.attach(MIMEText(body_html, "html"))
+
+    # Recipients for Gmail API call
     all_recipients = [to]
     if cc:
-        all_recipients += cc.split(', ')
+        all_recipients += cc.split(", ")
     if bcc:
-        all_recipients += bcc.split(', ')
+        all_recipients += bcc.split(", ")
 
-    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
 
     try:
         send_result = service.users().messages().send(
             userId="me", body={"raw": raw_message}
         ).execute()
-        print(f"Email sent! Message ID: {send_result['id']}")
+        print(f"Email sent! Message ID: {send_result["id"]}")
     except Exception as e:
         print("An error occurred while sending email:", e)
 
@@ -89,7 +94,22 @@ def authenticate_gmail():
 
     if not creds:
         raise "Could not load credentials - check README.md for instructions"
-    return build('gmail', 'v1', credentials=creds)
+    return build("gmail", "v1", credentials=creds)
+
+
+html_text = """
+<html>
+  <body>
+    <p>Here is your table:</p>
+    <table border="1" cellpadding="5" cellspacing="0" style="border-collapse:collapse;">
+      <tr style="background-color:#f2f2f2;"><th>Item</th><th>Quantity</th></tr>
+      <tr><td>Apples</td><td>10</td></tr>
+      <tr><td>Bananas</td><td>5</td></tr>
+    </table>
+  </body>
+</html>
+"""
+
 
 def main(args):
     if not len(args):
@@ -98,9 +118,9 @@ def main(args):
 
     email = args[0]
     service = authenticate_gmail()
-    send_email(service, email, "Test email from Python", "This is a test email sent from Python")
+    send_email(service, email, "Test email from Python",
+               "This email needs to be read with an HTML-capable client", html_text)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main(sys.argv[1:])
-
-
