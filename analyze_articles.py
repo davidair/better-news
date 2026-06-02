@@ -1,3 +1,4 @@
+import argparse
 import re
 import sqlite3
 import sys
@@ -6,6 +7,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from ollama_wrapper import OllamaWrapper
+from llama_cpp_wrapper import LlamaCppWrapper
 
 from utils import generate_filename
 
@@ -48,7 +50,7 @@ def run_analysis(ollama_client, title, description):
               "to cause distress to the reader so it's important to annotate anything possibly causing distress as negative. Make sure response always starts with -1, 0 or 1 before the explanation.")
 
     # Send the prompt to the model and retrieve the response
-    response = ollama_client.generate(prompt, options={"temperature": 0})
+    response = ollama_client.generate(prompt, options={"temperature": 0.2})
     sentiment, explanation = parse_sentiment(response)
 
     return sentiment, explanation
@@ -144,31 +146,62 @@ def analyze_articles(ollama_client, raw_storage_path, db_path):
     conn.close()
 
 
+import argparse
+import sys
+from pathlib import Path
+
 def main(args):
-    raw_storage_path = Path("rss_raw_data")
-    db_path = Path("rss_storage.sqlite")
+    # Set up argument parser
+    parser = argparse.ArgumentParser(
+        description="Analyze RSS articles using a local LLM runtime."
+    )
+    
+    # Enforce mandatory runtime selection
+    parser.add_argument(
+        "--runtime",
+        choices=["ollama", "llama_cpp"],
+        required=True,
+        help="The LLM runtime to use for analysis (ollama or llama_cpp)."
+    )
+    
+    # Optional path arguments with defaults
+    parser.add_argument(
+        "--raw-storage-path",
+        type=Path,
+        default=Path("rss_raw_data"),
+        help="Path to the raw RSS data directory (default: rss_raw_data)."
+    )
+    parser.add_argument(
+        "--db-path",
+        type=Path,
+        default=Path("rss_storage.sqlite"),
+        help="Path to the SQLite database file (default: rss_storage.sqlite)."
+    )
 
-    if len(args) > 0:
-        raw_storage_path = Path(args[0])
+    # Parse the arguments
+    parsed_args = parser.parse_args(args)
 
-    if len(args) > 1:
-        db_path = Path(args[1])
-
-    if not raw_storage_path.exists():
-        print(f"{raw_storage_path} does not exist")
+    # Validate paths exist
+    if not parsed_args.raw_storage_path.exists():
+        print(f"{parsed_args.raw_storage_path} does not exist")
         sys.exit(1)
 
-    if not db_path.exists():
-        print(f"{db_path} does not exist")
+    if not parsed_args.db_path.exists():
+        print(f"{parsed_args.db_path} does not exist")
         sys.exit(1)
 
-    ollama_client = OllamaWrapper(MODEL_NAME)
+    # Initialize the requested client wrapper
+    if parsed_args.runtime == "ollama":
+        llm_client = OllamaWrapper(MODEL_NAME)
+    else:
+        llm_client = LlamaCppWrapper()
 
+    # Execute analysis with lifecycle management
     try:
-        ollama_client.start_ollama()
-        analyze_articles(ollama_client, raw_storage_path, db_path)
+        llm_client.start()
+        analyze_articles(llm_client, parsed_args.raw_storage_path, parsed_args.db_path)
     finally:
-        ollama_client.stop_ollama()
+        llm_client.stop()
 
 
 if __name__ == "__main__":

@@ -4,33 +4,47 @@ import requests
 import platform
 import psutil
 import sys
+import yaml
+
+from pathlib import Path
 
 
-class OllamaWrapper:
-    def __init__(self, model='llama3'):
-        self.model = model
+class LlamaCppWrapper:
+    def __init__(self):
+
+        script_dir = Path(__file__).resolve().parent
+        config_path = script_dir / "llama-cpp-config.yaml"
+
+        if not config_path.exists():
+            raise Exception(f"Cannot find {config_path}")
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+
+        self.server_path = data["server_path"]
+        self.model_path = data["model_path"]
         self.started_here = False
         self.process = None
 
     def _is_client_running(self):
         try:
-            requests.get("http://localhost:11434", timeout=1)
+            requests.get("http://localhost:8080", timeout=1)
             return True
         except requests.RequestException:
             return False
 
     def start(self):
         if self._is_client_running():
-            print("Ollama already running.")
+            print("Server already already running.")
             return
 
-        print("Starting Ollama...")
+        print("Starting llama-cpp-server...")
         creationflags = 0
         if platform.system() == 'Windows':
             creationflags = subprocess.CREATE_NO_WINDOW  # Hide the window
 
         self.process = subprocess.Popen(
-            ["ollama", "serve"],
+            [self.server_path, "-m", self.model_path],
             creationflags=creationflags if platform.system() == 'Windows' else 0
         )
 
@@ -39,25 +53,34 @@ class OllamaWrapper:
 
     def stop(self):
         if not self.started_here:
-            print("Not stopping Ollama since we didn't start it.")
+            print("Not stopping server since we didn't start it.")
             return
 
-        print("Stopping Ollama...")
+        print("Stopping server...")
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
-                if 'ollama' in proc.info['name'] or (
+                if 'llama-server' in proc.info['name'] or (
                         proc.info['cmdline'] and 'ollama' in proc.info['cmdline'][0]):
                     proc.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
     def generate(self, prompt, options):
-        from ollama import Client
-        client = Client()
-        response = client.generate(model=self.model, prompt=prompt, options=options)
-        return response['response']
+        from openai import OpenAI
+        client = OpenAI(base_url="http://localhost:8080/v1", api_key="nocare")
+        temperature = None
+        if "temperature" in options:
+            temperature = options["temperature"]
+        response = client.chat.completions.create(
+            model="local-model",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            temperature=temperature,
+        )
+        return response.choices[0].message.content
 
-    def run_inference(self, prompt, options = {}):
+    def run_inference(self, prompt, options={}):
         try:
             self.start()
             return self.generate(prompt, options)
@@ -66,7 +89,7 @@ class OllamaWrapper:
 
 
 def main(args):
-    wrapper = OllamaWrapper(model="llama3.2")
+    wrapper = LlamaCppWrapper()
     prompt = " ".join(
         args) if args else "Explain why the sky is blue in one paragraph."
     response = wrapper.run_inference(prompt)

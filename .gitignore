@@ -202,8 +202,13 @@ feeds.yaml
 
 # Local cache
 rss_storage.sqlite
+rss_storage.sqlite-journal
 rss_raw_data/
 
 # Google Cloud
 credentials.json
 token.json
+
+# Llama-cpp config yaml
+llama-cpp-config.yaml
+

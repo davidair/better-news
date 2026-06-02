@@ -122,11 +122,20 @@ python download_feeds.py feeds.yaml
 
 ### analyze_articles.py
 
-Runs llama3.2 (using ollama) and analyzes the sentiment of each article.
+Analyzes the sentiment of each article.
 Stores results in the database.
+
+Supports using ollama or llama-cpp.
 
 Usage:
 
 ```
-python analyze_articles.py rss_raw_data rss_storage.sqlite
+python analyze_articles.py --runtime {ollama,llama_cpp} [--raw-storage-path RAW_STORAGE_PATH] [--db-path DB_PATH]
+```
+
+Note: for llama-cpp, create a llama-cpp-config.yaml file:
+
+```
+server_path: path to a precompiled llama-server binary
+model_path: Path to a compatible gguf file
 ```
