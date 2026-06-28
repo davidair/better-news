@@ -141,3 +141,107 @@ Note: for llama-cpp, create a llama-cpp-config.yaml file:
 server_path: path to a precompiled llama-server binary
 model_path: Path to a compatible gguf file
 ```
+
+### send_digest.py
+
+Sends an HTML email digest of positive-sentiment articles not yet emailed.
+Tracks sent items in the database to avoid duplicates.
+On first run, only includes articles from the last 7 days.
+
+Usage:
+
+```
+python send_digest.py --to your@email.com [--db-path DB_PATH] [--max-items N] [--dry-run]
+```
+
+`--dry-run` prints the digest without sending anything.
+
+### run_pipeline.py
+
+Orchestrates the full pipeline: download → analyze → digest.
+Designed to run on a schedule. Features:
+- Skips LLM analysis if GPU utilization exceeds a threshold (default: 20%)
+- Uses a lockfile so concurrent instances exit cleanly
+- Shows a system tray icon while running (green = running, yellow = GPU busy, red = error)
+
+Usage:
+
+```
+python run_pipeline.py --feeds-file feeds.yaml --runtime {ollama,llama_cpp} --to your@email.com
+```
+
+Optional flags:
+
+```
+--db-path PATH              (default: rss_storage.sqlite)
+--raw-storage-path PATH     (default: rss_raw_data)
+--gpu-threshold N           Skip analysis if GPU% > N (default: 20)
+--skip-email                Download + analyze only, no digest
+--force                     Bypass GPU check
+--log-path PATH             (default: pipeline.log)
+```
+
+The tray icon requires `pystray` and `Pillow` (included in requirements). If they are
+not available the pipeline runs without a tray icon.
+
+### Scheduling
+
+**Windows (Task Scheduler)**
+
+Run once as the user who will own the task:
+
+```powershell
+.\setup_task.ps1 -To your@email.com -Runtime ollama -FeedsFile feeds.yaml
+```
+
+This registers a task named `BetterNews-Pipeline` that runs every 2 hours.
+Use `-IntervalHours N` to change the interval.
+
+To remove the task:
+```powershell
+Unregister-ScheduledTask -TaskName 'BetterNews-Pipeline' -Confirm:$false
+```
+
+**macOS (launchd)**
+
+Create `~/Library/LaunchAgents/com.better-news.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.better-news</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/path/to/better-news/.venv/bin/python</string>
+    <string>/path/to/better-news/run_pipeline.py</string>
+    <string>--feeds-file</string><string>/path/to/better-news/feeds.yaml</string>
+    <string>--runtime</string><string>ollama</string>
+    <string>--to</string><string>your@email.com</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/path/to/better-news</string>
+  <key>StartInterval</key>
+  <integer>7200</integer>
+  <key>StandardOutPath</key>
+  <string>/path/to/better-news/pipeline.log</string>
+  <key>StandardErrorPath</key>
+  <string>/path/to/better-news/pipeline.log</string>
+</dict>
+</plist>
+```
+
+Load it with:
+```
+launchctl load ~/Library/LaunchAgents/com.better-news.plist
+```
+
+**Linux (cron)**
+
+```
+0 */2 * * * cd /path/to/better-news && .venv/bin/python run_pipeline.py \
+  --feeds-file feeds.yaml --runtime ollama --to your@email.com >> pipeline.log 2>&1
+```

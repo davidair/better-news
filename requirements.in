@@ -6,6 +6,8 @@ google-auth-httplib2
 google-auth-oauthlib
 ollama
 openai
+pillow
 psutil
+pystray
 pyyaml
 requests
