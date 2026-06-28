@@ -48,6 +48,8 @@ gcloud services enable gmail.googleapis.com
 - When offered, download the json file and save it as "credentials.json" in this project's root directory.
 - Make sure to add your email address as a test user under Audiences!
 
+Important: if it's been a while and mailing script fails with "google.auth.exceptions.RefreshError", delete token.json which will force a re-authorization.
+
 
 ### Create a virtual environment
 
